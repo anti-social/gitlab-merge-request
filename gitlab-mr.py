@@ -130,13 +130,14 @@ class Cli(object):
         return parser
 
     def git_cmd(self, args):
+        git_args = ['git'] + args
         try:
             res = subprocess.run(
-                ['git', *args], stdout=subprocess.PIPE,
+                git_args, stdout=subprocess.PIPE,
             )
             if res.returncode != 0:
                 err('%s command exited with error: %s',
-                    ' '.join(['git', *args]), res.returncode)
+                    ' '.join(git_args), res.returncode)
             return str(res.stdout, 'utf-8').strip()
         except FileNotFoundError as e:
             err('Cannot find git command: %s', e)

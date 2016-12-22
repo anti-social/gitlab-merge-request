@@ -148,7 +148,7 @@ def test_unknown_source_remote(gitlab, repo_unknown_remote):
 def test_dirty_repo_question(gitlab, repo_dirty):
     cli = gitlab_mr.Cli(gitlab, repo_dirty)
 
-    with patch.object(gitlab_mr, 'input', return_value='n') as input:
+    with patch('builtins.input', return_value='n') as input:
         assert cli.run(['create']) == 1
     assert input.call_args[0][0].startswith('There are uncommited changes')
 
@@ -182,7 +182,7 @@ def test_local_commits(gitlab, repo):
 
     local_commits = [Mock(hash='123', message='Test', state='+')]
     with patch.object(cli, 'get_mr_commits', Mock(return_value=local_commits)) as get_mr_commits, \
-         patch.object(gitlab_mr, 'input', return_value='n') as input:
+         patch('builtins.input', return_value='n') as input:
         assert cli.run(['create']) == 1
     assert get_mr_commits.call_args[0] == ('feature', 'origin/feature')
     assert input.call_args[0][0].startswith('Found local commits')
@@ -205,7 +205,7 @@ def test_cancel_mr(gitlab, repo):
 
     mr_commits = [Mock(hash='0123456789', message='Test', state='+')]
     with patch.object(cli, 'get_mr_commits', Mock(side_effect=[[], mr_commits])), \
-         patch.object(gitlab_mr, 'input', return_value='n') as input:
+         patch('builtins.input', return_value='n') as input:
         cli.run(['create'])
     prompt = input.call_args[0][0]
     assert '# You are creating a merge request:' in prompt
@@ -223,7 +223,7 @@ def test_do_mr(gitlab, repo, project):
         Mock(hash='abcdef0123', message='Test multiple commits', state='+'),
     ]
     with patch.object(cli, 'get_mr_commits', Mock(side_effect=[[], mr_commits])), \
-         patch.object(gitlab_mr, 'input', return_value='y') as input:
+         patch('builtins.input', return_value='y') as input:
         cli.run(['create'])
 
     prompt = input.call_args[0][0]
