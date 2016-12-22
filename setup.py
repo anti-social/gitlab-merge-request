@@ -19,6 +19,9 @@ setup(
     py_modules=[
         'gitlab-mr',
     ],
+    scripts=[
+        'gitlab-mr'
+    ],
     install_requires=parse_requirements('requirements.txt'),
     tests_requires=parse_requirements('requirements_test.txt'),
     classifiers=[

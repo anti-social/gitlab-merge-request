@@ -23,6 +23,48 @@ PRIVATE_CONFIG_TEMPLATE = '''[gitlab]
 private_token = {private_token}
 '''
 
+CONFIG_TEMPLATE = '''
+[gitlab]
+url = {gitlab_url}
+mr_edit = false
+mr_accept_merge = false
+mr_remove_branch = true
+
+# Logging configuration
+[loggers]
+keys = root,gitlab,gitlab-cli
+
+[handlers]
+keys = console
+
+[formatters]
+keys = generic
+
+[logger_root]
+level = INFO
+handlers = console
+qualname =
+
+[logger_gitlab]
+level = WARNING
+handlers = console
+qualname =
+
+[logger_gitlab-cli]
+level = INFO
+handlers = console
+qualname =
+
+[handler_console]
+class = StreamHandler
+args = (sys.stderr,)
+level = NOTSET
+formatter = generic
+
+[formatter_generic]
+format = %(levelname)s [%(name)s] %(message)s
+'''
+
 DEFAULT_TIMEOUT = 5
 
 
@@ -494,17 +536,35 @@ def save_private_token(conf_path, token):
             dir=os.path.dirname(conf_path), delete=False) as tf:
         tf.write(content.encode('utf-8'))
         os.rename(tf.name, conf_path)
-        log.info('Config file {} was successfully written.'.format(conf_path))
 
 
-if __name__ == '__main__':
+def create_main_config(conf_path, url):
+    content = CONFIG_TEMPLATE.format(gitlab_url=url)
+    with tempfile.NamedTemporaryFile(
+            dir=os.path.dirname(conf_path), delete=False) as tf:
+        tf.write(content.encode('utf-8'))
+        os.rename(tf.name, conf_path)
+
+
+def main(args):
+    if not os.path.exists(CONFIG_PATH):
+        gitlab_url = input('Enter gitlab server url: ')
+        create_main_config(CONFIG_PATH, gitlab_url)
+        print('Config was successfully saved into {} file\n'
+              'Do not forget to include it into git index.'.format(CONFIG_PATH))
+
     config = ConfigParser()
     config.read(CONFIG_FILES)
-    token_url = '{}/profile'.format(config['gitlab']['url'])
+    try:
+        token_url = '{}/profile'.format(config['gitlab']['url'])
+    except KeyError:
+        log.error('Create gitlab.ini file with ')
+        sys.exit(1)
 
     if not config['gitlab'].get('private_token'):
         token = input('Enter your private token ({}): '.format(token_url))
         save_private_token(PRIVATE_CONFIG_PATH, token)
+        print('Config file {} was successfully written.'.format(PRIVATE_CONFIG_PATH))
         config.read(PRIVATE_CONFIG_PATH)
 
     if 'loggers' in config:
@@ -529,13 +589,17 @@ if __name__ == '__main__':
         git.Repo(),
         source_remote=source_remote,
         target_remote=target_remote,
-        mr_edit=settings.getboolean('mr_edit', fallback=True),
-        mr_accept_merge=True,
-        mr_remove_branch=True,
+        mr_edit=settings.getboolean('mr_edit', fallback=False),
+        mr_accept_merge=settings.getboolean('mr_accept_merge', fallback=False),
+        mr_remove_branch=settings.getboolean('mr_remove_branch', fallback=True),
     )
     try:
-        exit_code = cli.run(sys.argv[1:])
+        exit_code = cli.run(args)
         sys.exit(exit_code)
     except _GitlabMRError as e:
         log.error(e.msg, *e.args)
         sys.exit(e.exit_code)
+
+
+if __name__ == '__main__':
+    main(sys.argv[1:])
