@@ -108,12 +108,13 @@ class Cli(object):
         parser = ArgumentParser(
             description='Simple stupid gitlab cli for merge requests.'
         )
+        parser.set_defaults(action='create')
         subparsers = parser.add_subparsers(help='Subcommands')
         mr_parser = subparsers.add_parser(
             'create', help='Create merge request'
         )
-        # TODO: Should we add subcommands for merge-request: create, edit, apply
-        mr_parser.set_defaults(action=self.merge_request)
+        # TODO: Should we add subcommands: update, accept?
+        mr_parser.set_defaults(action=self.create)
         mr_parser.add_argument(
             '--source-branch', '-s', dest='source_branch',
             help='Source branch for merge'
@@ -232,7 +233,6 @@ class Cli(object):
         else:
             remote_branch = local_branch
         try:
-            print(project.branches)
             project.branches.get(remote_branch)
         except GitlabGetError:
             err('Branch [%s] not found on the gitlab server', remote_branch)
@@ -242,12 +242,13 @@ class Cli(object):
 
     def run(self, args):
         options = self.parser.parse_args(args)
+        # TODO: make `create` default command
         if not hasattr(options, 'action'):
             self.parser.print_help()
-            return
-        return self.merge_request(options)
+            sys.exit(1)
+        return options.action(options)
 
-    def merge_request(self, opts):
+    def create(self, opts):
         source_remote = opts.source_remote or self.source_remote
         source_project_path = self.get_project_path_by_remote(source_remote)
         target_remote = opts.target_remote or self.target_remote
@@ -267,12 +268,10 @@ class Cli(object):
         remote_source_branch = self.get_remote_branch_name(
             source_project, source_branch, source_remote
         )
-        print(remote_source_branch, self.repo.remotes[source_remote].refs)
         if remote_source_branch not in self.repo.remotes[source_remote].refs:
             err('You must push [%(branch)s] branch before creating merge request:\n'
                 '\tgit push %(remote)s %(branch)s',
                 {'remote': source_remote, 'branch': remote_source_branch})
-        print(remote_source_branch)
         local_commits = self.get_mr_commits(
             source_branch,
             self.repo.remotes[source_remote].refs[remote_source_branch].name
@@ -603,7 +602,7 @@ def main():
     )
     try:
         exit_code = cli.run(sys.argv[1:])
-        sys.exit(exit_code)
+        sys.exit(exit_code or 0)
     except _GitlabMRError as e:
         log.error(e.msg, *e.args)
         sys.exit(e.exit_code)

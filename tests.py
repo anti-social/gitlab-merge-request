@@ -137,6 +137,28 @@ def repo_detached(origin):
     )
 
 
+@pytest.fixture
+def conf_file():
+    with tempfile.NamedTemporaryFile() as f:
+        f.write(
+            b'[gitlab]\n'
+            b'url = https://example.com\n'
+        )
+        f.flush()
+        yield f
+
+
+@pytest.fixture
+def private_conf_file():
+    with tempfile.NamedTemporaryFile() as f:
+        f.write(
+            b'[gitlab]\n'
+            b'private_token = test-token\n'
+        )
+        f.flush()
+        yield f
+
+
 def test_unknown_source_remote(gitlab, repo_unknown_remote):
     cli = gitlab_mr.Cli(gitlab, repo_unknown_remote)
 
@@ -280,7 +302,7 @@ def test_save_private_token():
             'private_token = abcdef\n'
         )
 
-    with tempfile.NamedTemporaryFile(delete=False) as tf:
+    with tempfile.NamedTemporaryFile() as tf:
         tf.write('[gitlab]\n'
                  'target_remote = upstream\n'.encode('utf-8'))
         tf.flush()
@@ -293,3 +315,16 @@ def test_save_private_token():
                 'target_remote = upstream\n'
             )
 
+
+def test_main(conf_file, private_conf_file, gitlab, repo):
+    mr_commits = [Mock(hash='0123456789', message='Test', state='+')]
+    with patch('gitlab_mr.sys.argv', ['gitlab-mr', 'create']), \
+         patch('gitlab_mr.CONFIG_PATH', conf_file.name), \
+         patch('gitlab_mr.PRIVATE_CONFIG_PATH', private_conf_file.name), \
+         patch('gitlab_mr.Cli.get_mr_commits', return_value=mr_commits), \
+         patch('gitlab_mr.git.Repo', return_value=repo), \
+         patch('gitlab_mr.Gitlab', return_value=gitlab), \
+         patch('gitlab_mr.sys.exit') as sys_exit, \
+         patch('builtins.input', return_value='y'):
+        gitlab_mr.main()
+    sys_exit.assert_called_with(0)

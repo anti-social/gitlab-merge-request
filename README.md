@@ -5,7 +5,7 @@
 To create a merge request just run:
 
 ```
-gitlab-mr
+gitlab-mr create
 ```
 
 The first time you will be asked about your gitlab server url and private token. Then 2 files will be created: 
