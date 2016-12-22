@@ -1,0 +1,14 @@
+__pycache__
+/.cache
+/.tox
+/build
+/dist
+/*.egg-info
+
+# Emacs
+*~
+\#*#
+.ropeproject/
+
+#PyCharm
+.idea/
