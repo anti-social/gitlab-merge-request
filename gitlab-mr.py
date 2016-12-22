@@ -256,7 +256,7 @@ class Cli(object):
         if self.repo.is_dirty():
             answer = input('There are uncommited changes. '
                            'Do you want to continue? [y/N]: ')
-            if answer not in ('y', 'Y', 'yes', 'YES'):
+            if not is_yes(answer):
                 return 1
 
         try:
@@ -288,7 +288,7 @@ class Cli(object):
                     )
                 )
             )
-            if answer not in ('y', 'Y', 'yes', 'YES'):
+            if not is_yes(answer):
                 return 1
 
         target_project = self.get_project_by_path(target_project_path)
@@ -322,9 +322,9 @@ class Cli(object):
             data = edit_mr(data, source_project, target_project, commits)
         else:
             answer = show_preview_and_confirm(data, source_project, target_project, commits)
-            if answer in ('e', 'E', 'edit', 'EDIT'):
+            if is_edit(answer):
                 data = edit_mr(data, source_project, target_project, commits)
-            elif answer not in ('y', 'Y', 'yes', 'YES'):
+            elif not is_yes(answer):
                 return 1
 
         if data['assignee']:
@@ -368,6 +368,14 @@ class Cli(object):
                 err('Error updating merge request: %s' % e)
             except GitlabConnectionError as e:
                 err('%s', e)
+
+
+def is_yes(ans):
+    return ans.lower() in ('y', 'yes')
+
+
+def is_edit(ans):
+    return ans.lower() in ('e', 'edit')
 
 
 def check_branch(project, branch):
