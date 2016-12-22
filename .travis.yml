@@ -16,4 +16,4 @@ install:
 - pip install --user -r requirements_test.txt
 
 script:
-- py.test 
+- py.test tests.py
