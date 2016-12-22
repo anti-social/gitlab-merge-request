@@ -1,7 +1,0 @@
-#!/usr/bin/env python3
-import sys
-
-gitlab_mr = __import__('gitlab-mr')
-
-
-gitlab_mr.main(sys.argv[1:])

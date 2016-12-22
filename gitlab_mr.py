@@ -554,7 +554,7 @@ def create_main_config(conf_path, url):
         os.rename(tf.name, conf_path)
 
 
-def main(args):
+def main():
     if not os.path.exists(CONFIG_PATH):
         gitlab_url = input('Enter gitlab server url: ')
         create_main_config(CONFIG_PATH, gitlab_url)
@@ -602,7 +602,7 @@ def main(args):
         mr_remove_branch=settings.getboolean('mr_remove_branch', fallback=True),
     )
     try:
-        exit_code = cli.run(args)
+        exit_code = cli.run(sys.argv[1:])
         sys.exit(exit_code)
     except _GitlabMRError as e:
         log.error(e.msg, *e.args)
@@ -610,4 +610,4 @@ def main(args):
 
 
 if __name__ == '__main__':
-    main(sys.argv[1:])
+    main()

@@ -5,7 +5,7 @@ import pytest
 
 from gitlab import GitlabGetError
 
-gitlab_mr = __import__('gitlab-mr')
+import gitlab_mr
 
 
 @pytest.fixture

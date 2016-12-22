@@ -17,11 +17,11 @@ setup(
     keywords="git gitlab merge-request",
     url="https://github.com/anti-social/gitlab-merge-request",
     py_modules=[
-        'gitlab-mr',
+        'gitlab_mr',
     ],
-    scripts=[
-        'gitlab-mr'
-    ],
+    entry_points = {
+        'console_scripts': ['gitlab-mr=gitlab_mr:main'],
+    },
     install_requires=parse_requirements('requirements.txt'),
     tests_requires=parse_requirements('requirements_test.txt'),
     classifiers=[
