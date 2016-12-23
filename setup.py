@@ -27,7 +27,7 @@ def parse_requirements(req_file_path):
 
 
 setup(
-    name="gitlab-merge-request",
+    name="gitlab-mr",
     version=get_version(),
     author="Alexander Koval",
     author_email="kovalidis@gmail.com",
