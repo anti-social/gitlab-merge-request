@@ -7,6 +7,7 @@ import collections
 import logging.config
 from argparse import ArgumentParser
 from configparser import ConfigParser
+from urllib.parse import urlparse
 
 import git
 from gitlab import Gitlab, GitlabError, GitlabGetError, GitlabConnectionError
@@ -222,8 +223,7 @@ class Cli(object):
             remote = self.repo.remotes[remote_name]
         except IndexError:
             err('Cannot find remote [%s]', remote_name)
-        # TODO: also parse http
-        return remote.url.partition(':')[2].partition('.git')[0]
+        return get_project_path_from_url(remote.url)
 
     def get_remote_branch_name(self, project, local_branch, remote):
         # check if there is upstream for local branch
@@ -367,6 +367,14 @@ class Cli(object):
                 err('Error updating merge request: %s' % e)
             except GitlabConnectionError as e:
                 err('%s', e)
+
+
+def get_project_path_from_url(url):
+    if url.startswith('git@'):
+        path = url.partition(':')[2]
+    else:
+        path = urlparse(url).path
+    return '/'.join(path.split('/')[-2:]).rpartition('.git')[0]
 
 
 def is_yes(ans):

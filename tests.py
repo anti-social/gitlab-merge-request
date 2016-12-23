@@ -292,6 +292,35 @@ def test_edit_mr(gitlab, repo):
     assert run_args[0] == 'nano'
 
 
+def test_main(conf_file, private_conf_file, gitlab, repo):
+    mr_commits = [Mock(hash='0123456789', message='Test', state='+')]
+    with patch('gitlab_mr.sys.argv', ['gitlab-mr', 'create']), \
+         patch('gitlab_mr.CONFIG_PATH', conf_file.name), \
+         patch('gitlab_mr.PRIVATE_CONFIG_PATH', private_conf_file.name), \
+         patch('gitlab_mr.Cli.get_mr_commits', return_value=mr_commits), \
+         patch('gitlab_mr.git.Repo', return_value=repo), \
+         patch('gitlab_mr.Gitlab', return_value=gitlab), \
+         patch('gitlab_mr.sys.exit') as sys_exit, \
+         patch('builtins.input', return_value='y'):
+        gitlab_mr.main()
+    sys_exit.assert_called_with(0)
+
+
+# Utils
+
+def test_get_project_path_from_url():
+    assert gitlab_mr.get_project_path_from_url(
+        'git@example.com:group/project.git') == 'group/project'
+    assert gitlab_mr.get_project_path_from_url(
+        'git@example.com:group/project.git.git') == 'group/project.git'
+    assert gitlab_mr.get_project_path_from_url(
+        'http://example.com/group/project.git') == 'group/project'
+    assert gitlab_mr.get_project_path_from_url(
+        'https://example.com/group/project.git') == 'group/project'
+    assert gitlab_mr.get_project_path_from_url(
+        'ssh://git@example.com:2222/var/git/group/project.git') == 'group/project'
+
+
 def test_save_private_token():
     conf_path = tempfile.mktemp()
     gitlab_mr.save_private_token(conf_path, 'abcdef')
@@ -314,17 +343,3 @@ def test_save_private_token():
                 'private_token = abcdef\n'
                 'target_remote = upstream\n'
             )
-
-
-def test_main(conf_file, private_conf_file, gitlab, repo):
-    mr_commits = [Mock(hash='0123456789', message='Test', state='+')]
-    with patch('gitlab_mr.sys.argv', ['gitlab-mr', 'create']), \
-         patch('gitlab_mr.CONFIG_PATH', conf_file.name), \
-         patch('gitlab_mr.PRIVATE_CONFIG_PATH', private_conf_file.name), \
-         patch('gitlab_mr.Cli.get_mr_commits', return_value=mr_commits), \
-         patch('gitlab_mr.git.Repo', return_value=repo), \
-         patch('gitlab_mr.Gitlab', return_value=gitlab), \
-         patch('gitlab_mr.sys.exit') as sys_exit, \
-         patch('builtins.input', return_value='y'):
-        gitlab_mr.main()
-    sys_exit.assert_called_with(0)
