@@ -1,6 +1,15 @@
 import os
 import re
+import sys
 from setuptools import setup, find_packages
+
+
+PY_VER = sys.version_info
+
+if PY_VER >= (3, 4):
+    pass
+else:
+    raise RuntimeError("Only support Python version >= 3.4")
 
 
 def get_version():
