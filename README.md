@@ -12,10 +12,15 @@ The first time you will be asked about your gitlab server url and private token.
 - `gitlab.ini` - you should add it under git versioning
 - `.git/gitlab.ini` - for your private settings
 
-If you prefer to work with your own fork (for example remote is called `fork`) you can set it in the private config. Just add next line into `[gitlab]` section of the `.git/gitlab.ini` file:
+If you prefer to work with your own fork (for example remote is called `fork`) you can set it in the private config. Just add next line into `[gitlab-mr]` section of the `.git/gitlab.ini` file:
 
 ```
 source_remote = fork
+```
+
+You can enable running editor by default by setting next option:
+```
+edit = true
 ```
 
 Also whenever you want you can specify source and target remotes with the next options: `--source-remote`, `--target-remote`.
