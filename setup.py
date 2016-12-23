@@ -13,7 +13,7 @@ def get_version():
 
 
 def parse_requirements(req_file_path):
-    with open(os.path.join(os.path.dirname(__file__), req_file_path)) as f:
+    with open(req_file_path) as f:
         return f.readlines()
 
 

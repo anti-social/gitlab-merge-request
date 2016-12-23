@@ -30,9 +30,11 @@ private_token = {private_token}
 CONFIG_TEMPLATE = '''
 [gitlab]
 url = {gitlab_url}
-mr_edit = false
-mr_accept_merge = false
-mr_remove_branch = true
+
+[gitlab-mr]
+edit = false
+accept_merge = false
+remove_branch = true
 
 # Logging configuration
 [loggers]
@@ -70,6 +72,10 @@ format = %(levelname)s [%(name)s] %(message)s
 '''
 
 DEFAULT_TIMEOUT = 5
+DEFAULT_MR_REMOTE = 'origin'
+DEFAULT_MR_EDIT = False
+DEFAULT_MR_ACCEPT = False
+DEFAULT_MR_REMOVE_BRANCH = True
 
 
 MRCommit = collections.namedtuple('MRCommit', ['hash', 'message', 'state'])
@@ -94,15 +100,15 @@ def err(msg, *args, exc=None, code=1):
 
 class Cli(object):
     def __init__(self, gitlab, repo,
-                 source_remote=None,
-                 target_remote=None,
-                 mr_edit=False,
-                 mr_accept_merge=False,
-                 mr_remove_branch=False):
+                 mr_source_remote=None,
+                 mr_target_remote=None,
+                 mr_edit=DEFAULT_MR_EDIT,
+                 mr_accept_merge=DEFAULT_MR_ACCEPT,
+                 mr_remove_branch=DEFAULT_MR_REMOVE_BRANCH):
         self.gitlab = gitlab
         self.repo = repo
-        self.source_remote = source_remote or 'origin'
-        self.target_remote = target_remote or 'origin'
+        self.source_remote = mr_source_remote or DEFAULT_MR_REMOTE
+        self.target_remote = mr_target_remote or DEFAULT_MR_REMOTE
         self.mr_edit = mr_edit
         self.mr_accept_merge = mr_accept_merge
         self.mr_remove_branch = mr_remove_branch
@@ -596,26 +602,28 @@ def main():
     else:
         logging.basicConfig()
 
-    settings = config['gitlab']
-    source_remote = settings.get(
-        'source_remote', fallback='origin',
-    )
-    target_remote = settings.get(
-        'target_remote', fallback='origin',
-    )
-    timeout = settings.getint(
-        'timeout', fallback=DEFAULT_TIMEOUT,
-    )
+    url = config.get('gitlab', 'url')
+    token = config.get('gitlab', 'private_token')
+    timeout = config.getint('gitlab', 'timeout', fallback=DEFAULT_TIMEOUT)
+    mr_source_remote = config.get(
+        'gitlab-mr', 'source_remote', fallback='origin')
+    mr_target_remote = config.get(
+        'gitlab-mr', 'target_remote', fallback='origin')
+    mr_edit = config.getboolean('gitlab-mr', 'edit', fallback=DEFAULT_MR_EDIT)
+    mr_accept_merge = config.getboolean(
+        'gitlab-mr', 'accept_merge', fallback=DEFAULT_MR_ACCEPT)
+    mr_remove_branch = config.getboolean(
+        'gitlab-mr', 'remove_branch', fallback=DEFAULT_MR_REMOVE_BRANCH)
     cli = Cli(
-        Gitlab(settings['url'],
-               private_token=settings['private_token'],
+        Gitlab(url,
+               private_token=token,
                timeout=timeout),
         git.Repo(),
-        source_remote=source_remote,
-        target_remote=target_remote,
-        mr_edit=settings.getboolean('mr_edit', fallback=False),
-        mr_accept_merge=settings.getboolean('mr_accept_merge', fallback=False),
-        mr_remove_branch=settings.getboolean('mr_remove_branch', fallback=True),
+        mr_source_remote=mr_source_remote,
+        mr_target_remote=mr_target_remote,
+        mr_edit=mr_edit,
+        mr_accept_merge=mr_accept_merge,
+        mr_remove_branch=mr_remove_branch,
     )
     try:
         exit_code = cli.run(sys.argv[1:])
