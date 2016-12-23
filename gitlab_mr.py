@@ -109,7 +109,6 @@ class Cli(object):
         parser = ArgumentParser(
             description='Simple stupid gitlab cli for merge requests.'
         )
-        parser.set_defaults(action='create')
         subparsers = parser.add_subparsers(help='Subcommands')
         mr_parser = subparsers.add_parser(
             'create', help='Create merge request'

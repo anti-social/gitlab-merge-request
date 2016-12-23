@@ -297,6 +297,7 @@ def test_main(conf_file, private_conf_file, gitlab, repo):
     with patch('gitlab_mr.sys.argv', ['gitlab-mr', 'create']), \
          patch('gitlab_mr.CONFIG_PATH', conf_file.name), \
          patch('gitlab_mr.PRIVATE_CONFIG_PATH', private_conf_file.name), \
+         patch('gitlab_mr.CONFIG_FILES', [conf_file.name, private_conf_file.name]), \
          patch('gitlab_mr.Cli.get_mr_commits', return_value=mr_commits), \
          patch('gitlab_mr.git.Repo', return_value=repo), \
          patch('gitlab_mr.Gitlab', return_value=gitlab), \
