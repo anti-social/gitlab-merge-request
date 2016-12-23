@@ -13,6 +13,9 @@ import git
 from gitlab import Gitlab, GitlabError, GitlabGetError, GitlabConnectionError
 
 
+__version__ = '0.1.0.dev0'
+
+
 log = logging.getLogger('gitlab-cli')
 
 
@@ -108,6 +111,10 @@ class Cli(object):
     def get_parser(self):
         parser = ArgumentParser(
             description='Simple stupid gitlab cli for merge requests.'
+        )
+        parser.add_argument(
+            '--version', '-v', dest='version',
+            help='Show version and exit'
         )
         subparsers = parser.add_subparsers(help='Subcommands')
         mr_parser = subparsers.add_parser(
@@ -241,10 +248,13 @@ class Cli(object):
 
     def run(self, args):
         options = self.parser.parse_args(args)
+        if options.version:
+            print(__version__)
+            return 0
         # TODO: make `create` default command
         if not hasattr(options, 'action'):
             self.parser.print_help()
-            sys.exit(1)
+            return 1
         return options.action(options)
 
     def create(self, opts):

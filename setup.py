@@ -1,15 +1,25 @@
 import os
+import re
 from setuptools import setup, find_packages
 
 
+def get_version():
+    with open(os.path.join(os.path.dirname(__file__), 'gitlab_mr.py')) as f:
+        for line in f.readlines():
+            m = re.match(r"__version__ = '(.*?)'", line)
+            if m:
+                return m.group(1)
+    raise ValueError('Cannot find version')
+
+
 def parse_requirements(req_file_path):
-    with open(req_file_path) as req_file:
-        return req_file.read().splitlines()
+    with open(os.path.join(os.path.dirname(__file__), req_file_path)) as f:
+        return f.readlines()
 
 
 setup(
     name="gitlab-merge-request",
-    version="0.1.0-dev",
+    version=get_version(),
     author="Alexander Koval",
     author_email="kovalidis@gmail.com",
     description=("Console utility to create gitlab merge requests."),
@@ -20,10 +30,9 @@ setup(
         'gitlab_mr',
     ],
     entry_points = {
-        'console_scripts': ['gitlab-mr=gitlab_mr:main'],
+        'console_scripts': ['gitlab-mr = gitlab_mr:main'],
     },
     install_requires=parse_requirements('requirements.txt'),
-    tests_requires=parse_requirements('requirements_test.txt'),
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Developers",
