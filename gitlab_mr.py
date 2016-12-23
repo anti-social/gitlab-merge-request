@@ -120,6 +120,7 @@ class Cli(object):
         )
         parser.add_argument(
             '--version', '-v', dest='version',
+            action='store_const', const=True, default=False,
             help='Show version and exit'
         )
         subparsers = parser.add_subparsers(help='Subcommands')
