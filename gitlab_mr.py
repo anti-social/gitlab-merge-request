@@ -13,7 +13,7 @@ import git
 from gitlab import Gitlab, GitlabError, GitlabGetError, GitlabConnectionError
 
 
-__version__ = '0.1.0.dev0'
+__version__ = '0.1.0'
 
 
 log = logging.getLogger('gitlab-cli')
