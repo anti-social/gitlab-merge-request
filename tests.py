@@ -1,4 +1,7 @@
+import sys
 import tempfile
+from contextlib import contextmanager
+from io import StringIO
 from unittest.mock import Mock, MagicMock, PropertyMock, call, patch
 
 import pytest
@@ -6,6 +9,18 @@ import pytest
 from gitlab import GitlabGetError
 
 import gitlab_mr
+
+import colorama
+
+
+@contextmanager
+def capture_stdout():
+    out = StringIO()
+    try:
+        stdout, sys.stdout = sys.stdout, out
+        yield out
+    finally:
+        sys.stdout = stdout
 
 
 @pytest.fixture
@@ -15,6 +30,11 @@ def project():
         namespace=Mock(path='test'),
         path_with_namespace='test/test',
         default_branch='master',
+        mergerequests=Mock(
+            create=Mock(return_value=Mock(
+                web_url='https://example.com/test/test/merge_requests/123'
+            ))
+        ),
     )
     proj.name = 'test'
     yield proj
@@ -228,13 +248,23 @@ def test_cancel_mr(gitlab, repo):
     mr_commits = [Mock(hash='0123456789', message='Test', state='+')]
     with patch.object(cli, 'get_mr_commits', Mock(side_effect=[[], mr_commits])), \
          patch('builtins.input', return_value='n') as input:
-        cli.run(['create'])
+        res = cli.run(['create'])
     prompt = input.call_args[0][0]
-    assert '# You are creating a merge request:' in prompt
-    assert 'test/test:feature -> test/test:master' in prompt
-    assert '# Title:\n' in prompt
-    assert '# Test\n' in prompt
-    assert '+ 01234567 Test\n' in prompt
+    assert (
+        '# You are creating a merge request:\n'
+        '#\t{}test/test:feature -> test/test:master{}'.format(
+            colorama.Fore.WHITE + colorama.Style.BRIGHT,
+            colorama.Style.RESET_ALL,
+        )
+    ) in prompt
+    assert (
+        '# Title:\n'
+        '# Test\n'
+    ) in prompt
+    assert '+ {}01234567{} Test\n'.format(
+        colorama.Fore.YELLOW, colorama.Style.RESET_ALL
+    ) in prompt
+    assert res == 1
 
 
 def test_do_mr(gitlab, repo, project):
@@ -245,16 +275,39 @@ def test_do_mr(gitlab, repo, project):
         Mock(hash='abcdef0123', message='Test multiple commits', state='+'),
     ]
     with patch.object(cli, 'get_mr_commits', Mock(side_effect=[[], mr_commits])), \
-         patch('builtins.input', return_value='y') as input:
-        cli.run(['create'])
+         patch('builtins.input', return_value='y') as input, \
+         capture_stdout() as stdout:
+        res = cli.run(['create'])
 
     prompt = input.call_args[0][0]
-    assert '# Title:\n' in prompt
-    assert '# feature\n' in prompt
-    assert '+ 01234567 Test\n' in prompt
-    assert '+ abcdef01 Test multiple commits\n' in prompt
+    assert (
+        '# You are creating a merge request:\n'
+        '#\t{}test/test:feature -> test/test:master{}'.format(
+            colorama.Fore.WHITE + colorama.Style.BRIGHT,
+            colorama.Style.RESET_ALL,
+        )
+    ) in prompt
+    assert (
+        '# Title:\n'
+        '# feature\n'
+    ) in prompt
+    assert '+ {}01234567{} Test\n'.format(
+        colorama.Fore.YELLOW, colorama.Style.RESET_ALL,
+    ) in prompt
+    assert '+ {}abcdef01{} Test multiple commits\n'.format(
+        colorama.Fore.YELLOW, colorama.Style.RESET_ALL,
+    ) in prompt
 
-    # TODO: assert stdout
+    out = stdout.getvalue()
+    assert 'Successfully created merge request:' in out
+    assert (
+        '\t{}Merge request URL:{} '
+        'https://example.com/test/test/merge_requests/123'.format(
+            colorama.Fore.WHITE + colorama.Style.BRIGHT,
+            colorama.Style.RESET_ALL,
+        )
+    ) in out
+    assert res == 0
 
     project.mergerequests.create.assert_called_with({
         'target_project_id': 123,
@@ -302,8 +355,23 @@ def test_main(conf_file, private_conf_file, gitlab, repo):
          patch('gitlab_mr.git.Repo', return_value=repo), \
          patch('gitlab_mr.Gitlab', return_value=gitlab), \
          patch('gitlab_mr.sys.exit') as sys_exit, \
-         patch('builtins.input', return_value='y'):
+         patch('builtins.input', return_value='y') as input, \
+         capture_stdout() as stdout:
         gitlab_mr.main()
+
+    prompt = input.call_args[0][0]
+    assert (
+        '# You are creating a merge request:\n'
+        '#\ttest/test:feature -> test/test:master'
+    ) in prompt
+
+    out = stdout.getvalue()
+    assert 'Successfully created merge request:' in out
+    assert (
+        '\tMerge request URL: '
+        'https://example.com/test/test/merge_requests/123'
+    ) in out
+
     sys_exit.assert_called_with(0)
 
 

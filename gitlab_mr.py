@@ -12,12 +12,18 @@ from urllib.parse import urlparse
 import git
 from gitlab import Gitlab, GitlabError, GitlabGetError, GitlabConnectionError
 
+import colorama
+
 
 __version__ = '0.1.1'
 
 
 log = logging.getLogger('gitlab-cli')
 
+
+OUTLINE_STYLE = colorama.Fore.WHITE + colorama.Style.BRIGHT
+COMMIT_HASH_STYLE = colorama.Fore.YELLOW
+SUCCESS_MR_STYLE = colorama.Fore.WHITE + colorama.Style.BRIGHT
 
 CONFIG_PATH = 'gitlab.ini'
 PRIVATE_CONFIG_PATH = '.git/gitlab.ini'
@@ -104,7 +110,8 @@ class Cli(object):
                  mr_target_remote=None,
                  mr_edit=DEFAULT_MR_EDIT,
                  mr_accept_merge=DEFAULT_MR_ACCEPT,
-                 mr_remove_branch=DEFAULT_MR_REMOVE_BRANCH):
+                 mr_remove_branch=DEFAULT_MR_REMOVE_BRANCH,
+                 colorize=True):
         self.gitlab = gitlab
         self.repo = repo
         self.source_remote = mr_source_remote or DEFAULT_MR_REMOTE
@@ -112,6 +119,7 @@ class Cli(object):
         self.mr_edit = mr_edit
         self.mr_accept_merge = mr_accept_merge
         self.mr_remove_branch = mr_remove_branch
+        self.colorize = colorize
         self.parser = self.get_parser()
 
     def get_parser(self):
@@ -336,7 +344,10 @@ class Cli(object):
         if opts.edit:
             data = edit_mr(data, source_project, target_project, commits)
         else:
-            answer = show_preview_and_confirm(data, source_project, target_project, commits)
+            answer = show_preview_and_confirm(
+                data, source_project, target_project, commits,
+                colorize=self.colorize,
+            )
             if is_edit(answer):
                 data = edit_mr(data, source_project, target_project, commits)
             elif not is_yes(answer):
@@ -354,7 +365,10 @@ class Cli(object):
         try:
             mr = source_project.mergerequests.create(data)
             print('Successfully created merge request:\n'
-                  '\tMerge request URL: {}\n'.format(mr.web_url))
+                  '\t{}Merge request URL:{} {}\n'.format(
+                      SUCCESS_MR_STYLE if self.colorize else '',
+                      colorama.Style.RESET_ALL if self.colorize else '',
+                      mr.web_url))
         except GitlabError as e:
             err('Error creating merge request: %s' % e)
         except GitlabConnectionError as e:
@@ -383,6 +397,8 @@ class Cli(object):
                 err('Error updating merge request: %s' % e)
             except GitlabConnectionError as e:
                 err('%s', e)
+
+        return 0
 
 
 def get_project_path_from_url(url):
@@ -459,7 +475,8 @@ def edit_mr(data, source_project, target_project, commits):
         return new_data
 
 
-def show_preview_and_confirm(data, source_project, target_project, commits):
+def show_preview_and_confirm(data, source_project, target_project, commits,
+                             colorize=True):
     title = (
         '# Title:\n'
         '# {}\n'
@@ -478,7 +495,7 @@ def show_preview_and_confirm(data, source_project, target_project, commits):
     answer = input(
         '\n'
         '# You are creating a merge request:\n'
-        '#\t{outline}\n'
+        '#\t{outline_style}{outline}{reset}\n'
         '#\n'
         '{title}'
         '{assignee}'
@@ -492,7 +509,12 @@ def show_preview_and_confirm(data, source_project, target_project, commits):
             assignee=assignee,
             description=description,
             outline=get_mr_outline(data, source_project, target_project),
-            commits=format_mr_commits(commits, prefix='#\t'),
+            commits=format_mr_commits(
+                commits, prefix='#\t',
+                hash_style=COMMIT_HASH_STYLE if colorize else ''
+            ),
+            outline_style=OUTLINE_STYLE if colorize else '',
+            reset=colorama.Style.RESET_ALL if colorize else '',
         )
     )
     return answer or 'Y'
@@ -509,9 +531,17 @@ def get_mr_outline(data, source_project, target_project):
     )
 
 
-def format_mr_commits(commits, prefix=''):
+def format_mr_commits(commits, prefix='', hash_style=''):
+    reset = colorama.Style.RESET_ALL if hash_style else ''
     return '\n'.join(
-        '{}{} {} {}'.format(prefix, c.state, c.hash[:8], c.message)
+        '{prefix}{state} {hash_style}{hash}{reset} {message}'.format(
+            prefix=prefix,
+            state=c.state,
+            hash=c.hash[:8],
+            message=c.message,
+            hash_style=hash_style,
+            reset=reset,
+        )
         for c in commits
     )
 
@@ -577,7 +607,14 @@ def create_main_config(conf_path, url):
         os.rename(tf.name, conf_path)
 
 
+def is_a_tty(stream):
+    return hasattr(stream, 'isatty') and stream.isatty()
+
+
 def main():
+    colorize = is_a_tty(sys.stdout)
+    colorama.init(strip=True)
+
     if not os.path.exists(CONFIG_PATH):
         gitlab_url = input('Enter gitlab server url: ')
         create_main_config(CONFIG_PATH, gitlab_url)
@@ -625,6 +662,7 @@ def main():
         mr_edit=mr_edit,
         mr_accept_merge=mr_accept_merge,
         mr_remove_branch=mr_remove_branch,
+        colorize=colorize,
     )
     try:
         exit_code = cli.run(sys.argv[1:])
