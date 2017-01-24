@@ -612,7 +612,7 @@ def is_a_tty(stream):
 
 
 def main():
-    colorama.init(strip=True)
+    colorama.init()
 
     if not os.path.exists(CONFIG_PATH):
         gitlab_url = input('Enter gitlab server url: ')
