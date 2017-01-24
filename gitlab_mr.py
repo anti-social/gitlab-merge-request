@@ -82,7 +82,7 @@ DEFAULT_MR_REMOTE = 'origin'
 DEFAULT_MR_EDIT = False
 DEFAULT_MR_ACCEPT = False
 DEFAULT_MR_REMOVE_BRANCH = True
-
+DEFAULT_MR_COLORIZE = True
 
 MRCommit = collections.namedtuple('MRCommit', ['hash', 'message', 'state'])
 
@@ -111,7 +111,7 @@ class Cli(object):
                  mr_edit=DEFAULT_MR_EDIT,
                  mr_accept_merge=DEFAULT_MR_ACCEPT,
                  mr_remove_branch=DEFAULT_MR_REMOVE_BRANCH,
-                 colorize=True):
+                 mr_colorize=DEFAULT_MR_COLORIZE):
         self.gitlab = gitlab
         self.repo = repo
         self.source_remote = mr_source_remote or DEFAULT_MR_REMOTE
@@ -119,7 +119,7 @@ class Cli(object):
         self.mr_edit = mr_edit
         self.mr_accept_merge = mr_accept_merge
         self.mr_remove_branch = mr_remove_branch
-        self.colorize = colorize
+        self.colorize = mr_colorize
         self.parser = self.get_parser()
 
     def get_parser(self):
@@ -612,7 +612,6 @@ def is_a_tty(stream):
 
 
 def main():
-    colorize = is_a_tty(sys.stdout)
     colorama.init(strip=True)
 
     if not os.path.exists(CONFIG_PATH):
@@ -652,6 +651,8 @@ def main():
         'gitlab-mr', 'accept_merge', fallback=DEFAULT_MR_ACCEPT)
     mr_remove_branch = config.getboolean(
         'gitlab-mr', 'remove_branch', fallback=DEFAULT_MR_REMOVE_BRANCH)
+    mr_colorize = config.getboolean(
+        'gitlab-mr', 'colorize', fallback=DEFAULT_MR_COLORIZE)
     cli = Cli(
         Gitlab(url,
                private_token=token,
@@ -662,7 +663,7 @@ def main():
         mr_edit=mr_edit,
         mr_accept_merge=mr_accept_merge,
         mr_remove_branch=mr_remove_branch,
-        colorize=colorize,
+        mr_colorize=mr_colorize and is_a_tty(sys.stdout),
     )
     try:
         exit_code = cli.run(sys.argv[1:])
