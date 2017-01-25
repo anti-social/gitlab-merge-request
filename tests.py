@@ -179,6 +179,12 @@ def private_conf_file():
         yield f
 
 
+@pytest.fixture
+def empty_private_conf_file():
+    with tempfile.NamedTemporaryFile() as f:
+        yield f
+
+
 def test_unknown_source_remote(gitlab, repo_unknown_remote):
     cli = gitlab_mr.Cli(gitlab, repo_unknown_remote)
 
@@ -345,12 +351,52 @@ def test_edit_mr(gitlab, repo):
     assert run_args[0] == 'nano'
 
 
+def test_main_ask_token(conf_file, empty_private_conf_file, gitlab, repo):
+    with patch('gitlab_mr.sys.argv', ['gitlab-mr', 'create']), \
+         patch('gitlab_mr.CONFIG_PATH', conf_file.name), \
+         patch('gitlab_mr.PRIVATE_CONFIG_PATH', empty_private_conf_file.name), \
+         patch('gitlab_mr.CONFIG_FILES',
+               [conf_file.name, empty_private_conf_file.name]), \
+         patch('gitlab_mr.Cli.get_mr_commits', return_value=[]), \
+         patch('gitlab_mr.git.Repo', return_value=repo), \
+         patch('gitlab_mr.Gitlab', return_value=gitlab), \
+         patch('gitlab_mr.sys.exit') as sys_exit, \
+         patch('builtins.input', return_value='aaaaAAAA') as input, \
+         capture_stdout() as stdout:
+        gitlab_mr.main()
+
+    with open(empty_private_conf_file.name) as private_conf_file:
+        assert private_conf_file.read() == (
+            '[gitlab]\n'
+            'private_token = aaaaAAAA\n'
+        )
+
+    prompt = input.call_args[0][0]
+    assert (
+        'Copy your private token from this page:\n'
+        '\thttps://example.com/profile/account\n'
+        '\n'
+        'And paste it here: '
+    ) in prompt
+
+    out = stdout.getvalue()
+    assert (
+        'Config file {} was successfully written.\n'
+        .format(empty_private_conf_file.name)
+    ) in out
+
+    # TODO: check no commit error
+
+    sys_exit.assert_called_with(1)
+
+
 def test_main(conf_file, private_conf_file, gitlab, repo):
     mr_commits = [Mock(hash='0123456789', message='Test', state='+')]
     with patch('gitlab_mr.sys.argv', ['gitlab-mr', 'create']), \
          patch('gitlab_mr.CONFIG_PATH', conf_file.name), \
          patch('gitlab_mr.PRIVATE_CONFIG_PATH', private_conf_file.name), \
-         patch('gitlab_mr.CONFIG_FILES', [conf_file.name, private_conf_file.name]), \
+         patch('gitlab_mr.CONFIG_FILES',
+               [conf_file.name, private_conf_file.name]), \
          patch('gitlab_mr.Cli.get_mr_commits', return_value=mr_commits), \
          patch('gitlab_mr.git.Repo', return_value=repo), \
          patch('gitlab_mr.Gitlab', return_value=gitlab), \

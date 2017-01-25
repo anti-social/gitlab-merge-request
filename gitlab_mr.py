@@ -590,6 +590,10 @@ def save_private_token(conf_path, token):
                     lines[token_ix] = token_line
                 else:
                     lines.insert(section_ix + 1, token_line)
+            else:
+                # There is no gitlab section
+                lines.insert(0, '[gitlab]\n')
+                lines.insert(1, 'private_token = {}\n'.format(token))
             content = ''.join(lines)
     else:
         content = PRIVATE_CONFIG_TEMPLATE.format(private_token=token)
@@ -623,13 +627,18 @@ def main():
     config = ConfigParser()
     config.read(CONFIG_FILES)
     try:
-        token_url = '{}/profile'.format(config['gitlab']['url'])
+        token_url = '{}/profile/account'.format(config['gitlab']['url'])
     except KeyError:
-        log.error('Create gitlab.ini file with ')
+        log.error('Cannot find server url inside gitlab.ini file.')
         sys.exit(1)
 
     if not config['gitlab'].get('private_token'):
-        token = input('Enter your private token ({}): '.format(token_url))
+        token = input(
+            'Copy your private token from this page:\n'
+            '\t{}\n'
+            '\n'
+            'And paste it here: '.format(token_url)
+        )
         save_private_token(PRIVATE_CONFIG_PATH, token)
         print('Config file {} was successfully written.'.format(PRIVATE_CONFIG_PATH))
         config.read(PRIVATE_CONFIG_PATH)
