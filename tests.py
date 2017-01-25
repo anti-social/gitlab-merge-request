@@ -371,6 +371,7 @@ def test_main_ask_token(conf_file, empty_private_conf_file, gitlab, repo):
             'private_token = aaaaAAAA\n'
         )
 
+    # TODO: test colorized output
     prompt = input.call_args[0][0]
     assert (
         'Copy your private token from this page:\n'
@@ -384,8 +385,10 @@ def test_main_ask_token(conf_file, empty_private_conf_file, gitlab, repo):
         'Config file {} was successfully written.\n'
         .format(empty_private_conf_file.name)
     ) in out
-
-    # TODO: check no commit error
+    assert (
+        'ERROR: Cannot found commits for merge request: '
+        'test/test:feature -> test/test:master\n'
+    ) in out
 
     sys_exit.assert_called_with(1)
 
@@ -405,6 +408,7 @@ def test_main(conf_file, private_conf_file, gitlab, repo):
          capture_stdout() as stdout:
         gitlab_mr.main()
 
+    # TODO: test colorized output
     prompt = input.call_args[0][0]
     assert (
         '# You are creating a merge request:\n'

@@ -24,6 +24,7 @@ log = logging.getLogger('gitlab-cli')
 OUTLINE_STYLE = colorama.Fore.WHITE + colorama.Style.BRIGHT
 COMMIT_HASH_STYLE = colorama.Fore.YELLOW
 SUCCESS_MR_STYLE = colorama.Fore.WHITE + colorama.Style.BRIGHT
+ERROR_STYLE = colorama.Fore.RED + colorama.Style.BRIGHT
 
 CONFIG_PATH = 'gitlab.ini'
 PRIVATE_CONFIG_PATH = '.git/gitlab.ini'
@@ -102,6 +103,14 @@ class _GitlabMRError(Exception):
 
 def err(msg, *args, exc=None, code=1):
     raise _GitlabMRError(msg, *args, exc=exc, exit_code=code)
+
+
+def format_colorized(format_string, colorize, *args, **kwargs):
+    kwargs.setdefault('reset_style', colorama.Style.RESET_ALL)
+    for key, style in kwargs.items():
+        if key.endswith('_style'):
+            kwargs[key] = style if colorize else ''
+    return format_string.format(*args, **kwargs)
 
 
 class Cli(object):
@@ -364,11 +373,13 @@ class Cli(object):
         )
         try:
             mr = source_project.mergerequests.create(data)
-            print('Successfully created merge request:\n'
-                  '\t{}Merge request URL:{} {}\n'.format(
-                      SUCCESS_MR_STYLE if self.colorize else '',
-                      colorama.Style.RESET_ALL if self.colorize else '',
-                      mr.web_url))
+            print(format_colorized(
+                'Successfully created merge request:\n'
+                '\t{success_style}Merge request URL:{reset_style} {url}\n',
+                colorize=self.colorize,
+                success_style=SUCCESS_MR_STYLE,
+                url=mr.web_url,
+            ))
         except GitlabError as e:
             err('Error creating merge request: %s' % e)
         except GitlabConnectionError as e:
@@ -492,10 +503,10 @@ def show_preview_and_confirm(data, source_project, target_project, commits,
         '# {}\n'
         '#\n'.format(data['description'])
     ) if data.get('description') else ''
-    answer = input(
+    answer = input(format_colorized(
         '\n'
         '# You are creating a merge request:\n'
-        '#\t{outline_style}{outline}{reset}\n'
+        '#\t{outline_style}{outline}{reset_style}\n'
         '#\n'
         '{title}'
         '{assignee}'
@@ -504,19 +515,18 @@ def show_preview_and_confirm(data, source_project, target_project, commits,
         '#\n'
         '{commits}\n'
         '#\n\n'
-        'Do you really want to create the merge request? [Y/n/e]: '.format(
-            title=title,
-            assignee=assignee,
-            description=description,
-            outline=get_mr_outline(data, source_project, target_project),
-            commits=format_mr_commits(
-                commits, prefix='#\t',
-                hash_style=COMMIT_HASH_STYLE if colorize else ''
-            ),
-            outline_style=OUTLINE_STYLE if colorize else '',
-            reset=colorama.Style.RESET_ALL if colorize else '',
-        )
-    )
+        'Do you really want to create the merge request? [Y/n/e]: ',
+        colorize=colorize,
+        title=title,
+        assignee=assignee,
+        description=description,
+        outline=get_mr_outline(data, source_project, target_project),
+        commits=format_mr_commits(
+            commits, prefix='#\t',
+            hash_style=COMMIT_HASH_STYLE,
+        ),
+        outline_style=OUTLINE_STYLE,
+    ))
     return answer or 'Y'
 
 
@@ -532,15 +542,15 @@ def get_mr_outline(data, source_project, target_project):
 
 
 def format_mr_commits(commits, prefix='', hash_style=''):
-    reset = colorama.Style.RESET_ALL if hash_style else ''
     return '\n'.join(
-        '{prefix}{state} {hash_style}{hash}{reset} {message}'.format(
+        format_colorized(
+            '{prefix}{state} {hash_style}{hash}{reset_style} {message}',
+            colorize=bool(hash_style),
             prefix=prefix,
             state=c.state,
             hash=c.hash[:8],
             message=c.message,
             hash_style=hash_style,
-            reset=reset,
         )
         for c in commits
     )
@@ -662,6 +672,7 @@ def main():
         'gitlab-mr', 'remove_branch', fallback=DEFAULT_MR_REMOVE_BRANCH)
     mr_colorize = config.getboolean(
         'gitlab-mr', 'colorize', fallback=DEFAULT_MR_COLORIZE)
+    colorize = mr_colorize and is_a_tty(sys.stdout)
     cli = Cli(
         Gitlab(url,
                private_token=token,
@@ -672,15 +683,20 @@ def main():
         mr_edit=mr_edit,
         mr_accept_merge=mr_accept_merge,
         mr_remove_branch=mr_remove_branch,
-        mr_colorize=mr_colorize and is_a_tty(sys.stdout),
+        mr_colorize=colorize,
     )
     try:
         exit_code = cli.run(sys.argv[1:])
         sys.exit(exit_code or 0)
     except _GitlabMRError as e:
-        log.error(e.msg, *e.args)
+        print(
+            format_colorized(
+                '{error_style}ERROR:{reset_style} {msg}',
+                colorize=colorize,
+                msg=e,
+                error_style=ERROR_STYLE,
+            )
+        )
         sys.exit(e.exit_code)
-
-
 if __name__ == '__main__':
     main()
