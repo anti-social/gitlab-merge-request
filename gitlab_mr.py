@@ -15,7 +15,7 @@ from gitlab import Gitlab, GitlabError, GitlabGetError, GitlabConnectionError
 import colorama
 
 
-__version__ = '0.2.1'
+__version__ = '0.2.2'
 
 
 log = logging.getLogger('gitlab-cli')
