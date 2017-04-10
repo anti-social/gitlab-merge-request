@@ -229,18 +229,15 @@ class Cli(object):
             commits.append(MRCommit(hash, msg, state))
         return commits
 
-    def get_project_by_path(self, path):
-        namespace_path, _, project_name = path.partition('/')
+    def get_project_by_path(self, project_path):
         try:
-            projects = self.gitlab.projects.search(project_name)
-        except GitlabError as e:
-            err('Error when getting project [%s]: %s' % (project_name, e))
+            return self.gitlab.projects.get(project_path)
         except GitlabConnectionError as e:
-            err('%s', e)
-        for p in projects:
-            if p.name == project_name and p.namespace.path == namespace_path:
-                return p
-        err('Cannot find project [%s]', path)
+            err('Cannot connect to the gitlab server: %s', e)
+        except GitlabGetError:
+            err('Project [%s] not found', project_path)
+        except GitlabError as e:
+            err('Error when getting project [%s]: %s' % (project_path, e))
 
     def get_user_by_username(self, username):
         for u in self.gitlab.users.search(username):
@@ -265,7 +262,8 @@ class Cli(object):
         try:
             project.branches.get(remote_branch)
         except GitlabGetError:
-            err('Branch [%s] not found on the gitlab server', remote_branch)
+            err('Branch [%s] from project [%s] not found',
+                remote_branch, project.path_with_namespace)
         except GitlabConnectionError as e:
             err('%s', e)
         return remote_branch

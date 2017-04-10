@@ -42,9 +42,14 @@ def project():
 
 @pytest.fixture
 def project_no_branch():
-    proj = Mock(namespace=Mock(path='test'))
+    proj = Mock(
+        namespace=Mock(path='test'),
+        path_with_namespace='test/test',
+    )
     proj.name = 'test'
-    proj.branches = Mock(get=Mock(side_effect=GitlabGetError()))
+    proj.branches = Mock(
+        get=Mock(side_effect=GitlabGetError('404 Branch not found', 404))
+    )
     yield proj
 
 
@@ -52,7 +57,7 @@ def project_no_branch():
 def gitlab(project):
     yield Mock(
         projects=Mock(
-            search=Mock(return_value=[project])
+            get=Mock(return_value=project)
         ),
     )
 
@@ -60,14 +65,16 @@ def gitlab(project):
 @pytest.fixture
 def gitlab_unknown_project():
     yield Mock(
-        projects=Mock(search=Mock(return_value=[])),
+        projects=Mock(
+            get=Mock(side_effect=GitlabGetError('404 Project not found', 404))
+        ),
     )
 
 
 @pytest.fixture
 def gitlab_no_branch(project_no_branch):
     yield Mock(
-        projects=Mock(search=Mock(return_value=[project_no_branch])),
+        projects=Mock(get=Mock(return_value=project_no_branch)),
     )
 
 
@@ -214,7 +221,7 @@ def test_unknown_project(gitlab_unknown_project, repo):
 
     with pytest.raises(gitlab_mr._GitlabMRError) as excinfo:
         cli.run(['create'])
-    assert str(excinfo.value) == 'Cannot find project [test/test]'
+    assert str(excinfo.value) == 'Project [test/test] not found'
 
 
 def test_branch_not_found(gitlab_no_branch, repo):
@@ -222,7 +229,8 @@ def test_branch_not_found(gitlab_no_branch, repo):
 
     with pytest.raises(gitlab_mr._GitlabMRError) as excinfo:
         cli.run(['create'])
-    assert str(excinfo.value).startswith('Branch [feature] not found on the gitlab server')
+    assert str(excinfo.value) == \
+        'Branch [feature] from project [test/test] not found'
 
 
 def test_local_commits(gitlab, repo):
