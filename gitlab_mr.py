@@ -113,6 +113,14 @@ def format_colorized(format_string, colorize, *args, **kwargs):
     return format_string.format(*args, **kwargs)
 
 
+def ssl_verify_option(s):
+    if s in ('true', 'on', '1'):
+        return True
+    elif s in ('false', 'off', '0'):
+        return False
+    return s
+
+
 class Cli(object):
     def __init__(self, gitlab, repo,
                  mr_source_remote=None,
@@ -139,6 +147,15 @@ class Cli(object):
             '--version', '-v', dest='version',
             action='store_const', const=True, default=False,
             help='Show version and exit'
+        )
+        parser.add_argument(
+            '--ssl-verify', dest='ssl_verify',
+            type=ssl_verify_option, default=True,
+            help=(
+                'Whether SSL certificates should be validated. '
+                'Can be true, false or path to the certificate file. '
+                'Default is true'
+            )
         )
         subparsers = parser.add_subparsers(help='Subcommands')
         mr_parser = subparsers.add_parser(
@@ -277,6 +294,7 @@ class Cli(object):
         if not hasattr(options, 'action'):
             self.parser.print_help()
             return 1
+        self.gitlab.ssl_verify = options.ssl_verify
         return options.action(options)
 
     def create(self, opts):
