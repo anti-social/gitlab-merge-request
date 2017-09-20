@@ -342,6 +342,7 @@ def test_do_mr(gitlab, repo, project, merge_request):
         'title': 'feature',
         'target_branch': 'master',
         'source_branch': 'feature',
+        'remove_source_branch': True,
     })
 
 
@@ -360,8 +361,7 @@ def test_accept_mr(gitlab, repo, merge_request):
         res = cli.run(['create'])
 
     merge_request.merge.assert_called_with(
-        merge_when_build_succeeds=True,
-        should_remove_source_branch=True,
+        merge_when_pipeline_succeeds=True,
     )
 
 

@@ -15,7 +15,7 @@ from gitlab import Gitlab, GitlabError, GitlabGetError, GitlabConnectionError
 import colorama
 
 
-__version__ = '0.2.3'
+__version__ = '0.3-dev'
 
 
 log = logging.getLogger('gitlab-cli')
@@ -329,6 +329,7 @@ class Cli(object):
             'target_project_id': target_project.id,
             'target_branch': target_branch,
             'assignee': opts.assignee,
+            'remove_source_branch': opts.remove_branch,
         }
 
         commits = self.get_mr_commits(
@@ -394,9 +395,7 @@ class Cli(object):
                           'there are failed builds.')
                     return
                 mr.merge(
-                    merge_when_build_succeeds=opts.accept_merge,
-                    # FIXME: removing source branch doesn't work
-                    should_remove_source_branch=opts.remove_branch,
+                    merge_when_pipeline_succeeds=opts.accept_merge,
                 )
                 print('Merge request was successfully updated:\n'
                       '\tAutomatic merge: {}\n'
@@ -674,7 +673,8 @@ def main():
     cli = Cli(
         Gitlab(url,
                private_token=token,
-               timeout=timeout),
+               timeout=timeout,
+               api_version=4),
         git.Repo(),
         mr_source_remote=mr_source_remote,
         mr_target_remote=mr_target_remote,
