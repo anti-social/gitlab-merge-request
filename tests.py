@@ -24,17 +24,31 @@ def capture_stdout():
 
 
 @pytest.fixture
-def project():
+def merge_request():
+    yield Mock(
+        web_url='https://example.com/test/test/merge_requests/123',
+        merge=Mock(return_value=Mock()),
+    )
+
+
+@pytest.fixture
+def project(merge_request):
     proj = Mock(
         id=123,
         namespace=Mock(path='test'),
         path_with_namespace='test/test',
         default_branch='master',
         mergerequests=Mock(
-            create=Mock(return_value=Mock(
-                web_url='https://example.com/test/test/merge_requests/123'
+            create=Mock(return_value=merge_request)
+        ),
+        commits=Mock(
+            get=Mock(return_value=Mock(
+                statuses=Mock(list=Mock(return_value=[Mock(status='success')]))
             ))
         ),
+        branches=Mock(
+            get=Mock(return_value=Mock(commit={'id': '1234567890abcdef'}))
+        )
     )
     proj.name = 'test'
     yield proj
@@ -281,7 +295,7 @@ def test_cancel_mr(gitlab, repo):
     assert res == 1
 
 
-def test_do_mr(gitlab, repo, project):
+def test_do_mr(gitlab, repo, project, merge_request):
     cli = gitlab_mr.Cli(gitlab, repo)
 
     mr_commits = [
@@ -329,10 +343,26 @@ def test_do_mr(gitlab, repo, project):
         'target_branch': 'master',
         'source_branch': 'feature',
     })
-    project.merge.create_assert_called_with({
-        'merge_when_build_succeeds': True,
-        'should_remove_source_branch': True,
-    })
+
+
+def test_accept_mr(gitlab, repo, merge_request):
+    cli = gitlab_mr.Cli(
+        gitlab, repo, mr_accept_merge=True, mr_remove_branch=True
+    )
+
+    mr_commits = [
+        Mock(hash='0123456789', message='Test', state='+'),
+        Mock(hash='abcdef0123', message='Test multiple commits', state='+'),
+    ]
+    with patch.object(cli, 'get_mr_commits', Mock(side_effect=[[], mr_commits])), \
+         patch('builtins.input', return_value='y') as input, \
+         capture_stdout() as stdout:
+        res = cli.run(['create'])
+
+    merge_request.merge.assert_called_with(
+        merge_when_build_succeeds=True,
+        should_remove_source_branch=True,
+    )
 
 
 def test_edit_mr(gitlab, repo):
